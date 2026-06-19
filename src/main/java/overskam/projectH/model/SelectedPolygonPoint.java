@@ -1,4 +1,4 @@
-﻿package overskam.projectH.model;
+package overskam.projectH.model;
 
 public class SelectedPolygonPoint {
 

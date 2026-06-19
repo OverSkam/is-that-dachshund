@@ -1,4 +1,4 @@
-﻿package overskam.projectH.video;
+package overskam.projectH.video;
 
 import javafx.scene.image.Image;
 import org.bytedeco.javacv.FFmpegFrameGrabber;

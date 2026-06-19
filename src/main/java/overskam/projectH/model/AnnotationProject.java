@@ -1,4 +1,4 @@
-﻿package overskam.projectH.model;
+package overskam.projectH.model;
 
 import javafx.geometry.Point2D;
 
@@ -75,6 +75,7 @@ public class AnnotationProject {
     public void removePolygon(AnnotationPolygon polygon) {
         polygons.remove(polygon);
     }
+
     public List<Integer> getAnnotatedFrameIndexes() {
         List<Integer> frameIndexes = new ArrayList<>();
 
@@ -89,6 +90,14 @@ public class AnnotationProject {
         Collections.sort(frameIndexes);
 
         return frameIndexes;
+    }
+
+    public void clear() {
+        polygons.clear();
+    }
+
+    public void addAllPolygons(List<AnnotationPolygon> importedPolygons) {
+        polygons.addAll(importedPolygons);
     }
 
 }

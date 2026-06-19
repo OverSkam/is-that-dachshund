@@ -1,4 +1,4 @@
-﻿package overskam.projectH.controller;
+package overskam.projectH.controller;
 
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
@@ -12,6 +12,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import overskam.projectH.export.CocoExporter;
+import overskam.projectH.export.CocoImporter;
 import overskam.projectH.model.AnnotationPolygon;
 import overskam.projectH.model.AnnotationProject;
 import overskam.projectH.model.SelectedPolygonPoint;
@@ -45,6 +46,8 @@ public class AnnotationController {
     private SelectedPolygonPoint hoveredPoint;
 
     private InteractionMode interactionMode = InteractionMode.DRAW;
+
+    private final CocoImporter cocoImporter = new CocoImporter();
 
     public AnnotationController(GraphicsContext gc, double canvasWidth, double canvasHeight) {
         this.gc = gc;
@@ -218,6 +221,7 @@ public class AnnotationController {
             TextField frameInput,
             Button goToFrameButton,
             Button closePolygonButton,
+            Button importCocoButton,
             Button exportCocoButton,
             ToggleButton drawModeButton,
             ToggleButton editModeButton,
@@ -239,6 +243,7 @@ public class AnnotationController {
         exportCocoButton.setOnAction(event -> exportCoco(stage));
         drawModeButton.setOnAction(event -> setInteractionMode(InteractionMode.DRAW, modeLabel));
         editModeButton.setOnAction(event -> setInteractionMode(InteractionMode.EDIT, modeLabel));
+        importCocoButton.setOnAction(event -> importCoco(stage));
     }
 
     private void removeExistingPoint(SelectedPolygonPoint selectedPoint) {
@@ -298,6 +303,37 @@ public class AnnotationController {
             );
 
             System.out.println("COCO exported to: " + outputFile.getAbsolutePath());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void importCoco(Stage stage) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Import COCO JSON");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("COCO JSON", "*.json")
+        );
+
+        File inputFile = fileChooser.showOpenDialog(stage);
+
+        if (inputFile == null) {
+            return;
+        }
+
+        try {
+            List<AnnotationPolygon> importedPolygons = cocoImporter.importPolygons(inputFile);
+
+            annotationProject.clear();
+            annotationProject.addAllPolygons(importedPolygons);
+
+            currentPolygonPoints.clear();
+            hoveredPoint = null;
+            draggedPoint = null;
+
+            redrawCanvas();
+
+            System.out.println("Imported polygons: " + importedPolygons.size());
         } catch (Exception e) {
             e.printStackTrace();
         }

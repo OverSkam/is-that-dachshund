@@ -1,4 +1,4 @@
-﻿package overskam.projectH;
+package overskam.projectH;
 
 import javafx.application.Application;
 import overskam.projectH.controller.AnnotationController;
@@ -25,6 +25,7 @@ public class MainApp extends Application {
         Button nextFrameButton = new Button("Next Frame");
         Button closePolygonButton = new Button("Close Polygon");
         Button exportCocoButton = new Button("Export COCO");
+        Button importCocoButton = new Button("Import COCO");
         TextField uncertaintyInput = new TextField();
         uncertaintyInput.setPromptText("Uncertainty");
         uncertaintyInput.setPrefWidth(120);
@@ -79,6 +80,7 @@ public class MainApp extends Application {
                 confidenceComboBox,
                 uncertaintyInput,
                 closePolygonButton,
+                importCocoButton,
                 exportCocoButton,
                 frameLabel,
                 modeLabel
@@ -115,6 +117,7 @@ public class MainApp extends Application {
                 frameInput,
                 goToFrameButton,
                 closePolygonButton,
+                importCocoButton,
                 exportCocoButton,
                 drawModeButton,
                 editModeButton,

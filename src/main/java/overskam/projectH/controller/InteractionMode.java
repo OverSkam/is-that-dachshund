@@ -1,4 +1,4 @@
-﻿package overskam.projectH.controller;
+package overskam.projectH.controller;
 
 public enum InteractionMode {
     DRAW,

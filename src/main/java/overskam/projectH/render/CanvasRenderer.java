@@ -1,4 +1,4 @@
-﻿package overskam.projectH.render;
+package overskam.projectH.render;
 
 import javafx.geometry.Point2D;
 import overskam.projectH.model.AnnotationPolygon;
