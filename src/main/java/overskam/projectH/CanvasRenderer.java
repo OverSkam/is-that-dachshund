@@ -18,7 +18,8 @@ public class CanvasRenderer {
             double canvasHeight,
             Image currentImage,
             List<AnnotationPolygon> completedPolygons,
-            List<Point2D> currentPolygonPoints
+            List<Point2D> currentPolygonPoints,
+            SelectedPolygonPoint hoveredPoint
     ) {
         gc.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -29,6 +30,8 @@ public class CanvasRenderer {
 
         drawCompletedPolygons(gc, completedPolygons);
         drawCurrentPolygon(gc, currentPolygonPoints);
+        drawHoveredPolygon(gc, hoveredPoint);
+        drawHoveredPoint(gc, hoveredPoint);
     }
 
     private void drawImageKeepingAspectRatio(
@@ -151,6 +154,55 @@ public class CanvasRenderer {
                     point.getY() - radius,
                     radius * 2,
                     radius * 2
+            );
+        }
+    }
+
+    private void drawHoveredPoint(GraphicsContext gc, SelectedPolygonPoint hoveredPoint) {
+        if (hoveredPoint == null || currentViewport == null) {
+            return;
+        }
+
+        AnnotationPolygon polygon = hoveredPoint.getPolygon();
+        Point2D imagePoint = polygon.getPoints().get(hoveredPoint.getPointIndex());
+        Point2D canvasPoint = currentViewport.imageToCanvas(imagePoint);
+
+        double radius = 7;
+
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(1.5);
+        gc.strokeOval(
+                canvasPoint.getX() - radius,
+                canvasPoint.getY() - radius,
+                radius * 2,
+                radius * 2
+        );
+    }
+
+    private void drawHoveredPolygon(GraphicsContext gc, SelectedPolygonPoint hoveredPoint) {
+        if (hoveredPoint == null || currentViewport == null) {
+            return;
+        }
+
+        AnnotationPolygon polygon = hoveredPoint.getPolygon();
+        List<Point2D> points = polygon.getPoints();
+
+        if (points.size() < 2) {
+            return;
+        }
+
+        gc.setStroke(Color.rgb(255, 255, 255, 0.75));
+        gc.setLineWidth(2);
+
+        for (int i = 0; i < points.size(); i++) {
+            Point2D currentPoint = currentViewport.imageToCanvas(points.get(i));
+            Point2D nextPoint = currentViewport.imageToCanvas(points.get((i + 1) % points.size()));
+
+            gc.strokeLine(
+                    currentPoint.getX(),
+                    currentPoint.getY(),
+                    nextPoint.getX(),
+                    nextPoint.getY()
             );
         }
     }

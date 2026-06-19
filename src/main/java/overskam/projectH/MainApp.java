@@ -4,13 +4,10 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import javafx.scene.control.ComboBox;
 
 public class MainApp extends Application {
 
@@ -26,6 +23,20 @@ public class MainApp extends Application {
         Button previousFrameButton = new Button("Prev Frame");
         Button nextFrameButton = new Button("Next Frame");
         Button closePolygonButton = new Button("Close Polygon");
+        Button exportCocoButton = new Button("Export COCO");
+        TextField uncertaintyInput = new TextField();
+        uncertaintyInput.setPromptText("Uncertainty");
+        uncertaintyInput.setPrefWidth(120);
+        uncertaintyInput.setText("none");
+
+        ToggleButton drawModeButton = new ToggleButton("Draw");
+        ToggleButton editModeButton = new ToggleButton("Edit");
+
+        ToggleGroup modeToggleGroup = new ToggleGroup();
+        drawModeButton.setToggleGroup(modeToggleGroup);
+        editModeButton.setToggleGroup(modeToggleGroup);
+
+        drawModeButton.setSelected(true);
 
         TextField frameInput = new TextField();
         frameInput.setPromptText("Frame #");
@@ -34,6 +45,7 @@ public class MainApp extends Application {
         Button goToFrameButton = new Button("Go");
 
         Label frameLabel = new Label("Frame: -");
+        Label modeLabel = new Label("Mode: DRAW");
 
         ComboBox<String> categoryComboBox = new ComboBox<>();
         categoryComboBox.getItems().addAll(
@@ -45,6 +57,14 @@ public class MainApp extends Application {
         );
         categoryComboBox.setValue("gallbladder");
 
+        ComboBox<String> confidenceComboBox = new ComboBox<>();
+        confidenceComboBox.getItems().addAll(
+                "high",
+                "medium",
+                "low"
+        );
+        confidenceComboBox.setValue("high");
+
         HBox toolbar = new HBox(
                 8,
                 openVideoButton,
@@ -52,9 +72,15 @@ public class MainApp extends Application {
                 nextFrameButton,
                 frameInput,
                 goToFrameButton,
+                drawModeButton,
+                editModeButton,
                 categoryComboBox,
+                confidenceComboBox,
+                uncertaintyInput,
                 closePolygonButton,
-                frameLabel
+                exportCocoButton,
+                frameLabel,
+                modeLabel
         );
 
         BorderPane root = new BorderPane();
@@ -71,7 +97,15 @@ public class MainApp extends Application {
 
         controller.showInitialImage("/tb.png");
         controller.connectMouse(canvas);
-        controller.connectKeyboard(scene, categoryComboBox);
+        controller.connectKeyboard(
+                scene,
+                categoryComboBox,
+                modeLabel,
+                drawModeButton,
+                editModeButton,
+                confidenceComboBox,
+                uncertaintyInput
+        );
         controller.connectButtons(
                 stage,
                 openVideoButton,
@@ -80,8 +114,14 @@ public class MainApp extends Application {
                 frameInput,
                 goToFrameButton,
                 closePolygonButton,
+                exportCocoButton,
+                drawModeButton,
+                editModeButton,
                 frameLabel,
-                categoryComboBox
+                modeLabel,
+                categoryComboBox,
+                confidenceComboBox,
+                uncertaintyInput
         );
 
         stage.setTitle("Medical Video Annotator");

@@ -1,5 +1,7 @@
 package overskam.projectH;
 
+import javafx.geometry.Point2D;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,5 +43,52 @@ public class AnnotationProject {
         return Collections.unmodifiableList(polygons);
     }
 
+    public SelectedPolygonPoint findNearestPoint(
+            int frameIndex,
+            Point2D imagePoint,
+            double maxDistance
+    ) {
+        SelectedPolygonPoint nearestPoint = null;
+        double nearestDistance = maxDistance;
+
+        for (AnnotationPolygon polygon : polygons) {
+            if (polygon.getFrameIndex() != frameIndex) {
+                continue;
+            }
+
+            List<Point2D> points = polygon.getPoints();
+
+            for (int i = 0; i < points.size(); i++) {
+                Point2D point = points.get(i);
+                double distance = point.distance(imagePoint);
+
+                if (distance <= nearestDistance) {
+                    nearestDistance = distance;
+                    nearestPoint = new SelectedPolygonPoint(polygon, i);
+                }
+            }
+        }
+
+        return nearestPoint;
+    }
+
+    public void removePolygon(AnnotationPolygon polygon) {
+        polygons.remove(polygon);
+    }
+    public List<Integer> getAnnotatedFrameIndexes() {
+        List<Integer> frameIndexes = new ArrayList<>();
+
+        for (AnnotationPolygon polygon : polygons) {
+            int frameIndex = polygon.getFrameIndex();
+
+            if (!frameIndexes.contains(frameIndex)) {
+                frameIndexes.add(frameIndex);
+            }
+        }
+
+        Collections.sort(frameIndexes);
+
+        return frameIndexes;
+    }
 
 }

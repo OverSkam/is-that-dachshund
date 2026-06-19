@@ -50,4 +50,8 @@ public class ImageViewport {
 
         return new Point2D(canvasX, canvasY);
     }
+
+    public double getScale() {
+        return drawWidth / imageWidth;
+    }
 }
