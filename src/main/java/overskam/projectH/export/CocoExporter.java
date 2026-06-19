@@ -1,8 +1,10 @@
-package overskam.projectH;
+﻿package overskam.projectH.export;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import javafx.geometry.Point2D;
+import overskam.projectH.model.AnnotationPolygon;
+import overskam.projectH.model.AnnotationProject;
 
 import java.io.File;
 import java.io.IOException;

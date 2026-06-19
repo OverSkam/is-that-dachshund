@@ -1,6 +1,8 @@
-package overskam.projectH;
+﻿package overskam.projectH.render;
 
 import javafx.geometry.Point2D;
+import overskam.projectH.model.AnnotationPolygon;
+import overskam.projectH.model.SelectedPolygonPoint;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;

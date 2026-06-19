@@ -1,4 +1,4 @@
-package overskam.projectH;
+﻿package overskam.projectH.controller;
 
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
@@ -10,6 +10,14 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import overskam.projectH.export.CocoExporter;
+import overskam.projectH.model.AnnotationPolygon;
+import overskam.projectH.model.AnnotationProject;
+import overskam.projectH.model.SelectedPolygonPoint;
+import overskam.projectH.render.CanvasRenderer;
+import overskam.projectH.render.ImageViewport;
+import overskam.projectH.video.VideoFrameReader;
 
 import java.io.File;
 import java.io.IOException;

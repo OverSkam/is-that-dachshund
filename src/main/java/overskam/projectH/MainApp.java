@@ -1,6 +1,7 @@
-package overskam.projectH;
+﻿package overskam.projectH;
 
 import javafx.application.Application;
+import overskam.projectH.controller.AnnotationController;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
