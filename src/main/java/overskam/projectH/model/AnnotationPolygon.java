@@ -9,9 +9,9 @@ public class AnnotationPolygon {
 
     private final int frameIndex;
     private final List<Point2D> points;
-    private final String categoryName;
-    private final String confidence;
-    private final String uncertaintyReason;
+    private String categoryName;
+    private String confidence;
+    private String uncertaintyReason;
 
     public AnnotationPolygon(
             int frameIndex,
@@ -47,8 +47,24 @@ public class AnnotationPolygon {
         return uncertaintyReason;
     }
 
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public void setConfidence(String confidence) {
+        this.confidence = confidence;
+    }
+
+    public void setUncertaintyReason(String uncertaintyReason) {
+        this.uncertaintyReason = uncertaintyReason;
+    }
+
     public void setPoint(int index, Point2D point) {
         points.set(index, point);
+    }
+
+    public void insertPoint(int index, Point2D point) {
+        points.add(index, point);
     }
 
     public void removePoint(int index) {

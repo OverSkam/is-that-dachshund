@@ -8,7 +8,11 @@ import overskam.projectH.model.AnnotationProject;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class CocoExporter {
 
@@ -28,7 +32,6 @@ public class CocoExporter {
             int imageHeight
     ) throws IOException {
         Map<String, Object> coco = new LinkedHashMap<>();
-
         Map<Integer, Integer> frameIndexToImageId = buildFrameIndexToImageId(annotationProject);
 
         coco.put("info", buildInfo());
@@ -57,9 +60,7 @@ public class CocoExporter {
 
     private Map<Integer, Integer> buildFrameIndexToImageId(AnnotationProject annotationProject) {
         List<Integer> frameIndexes = annotationProject.getAnnotatedFrameIndexes();
-
         Map<Integer, Integer> result = new LinkedHashMap<>();
-
         int imageId = 1;
 
         for (int frameIndex : frameIndexes) {
@@ -104,7 +105,6 @@ public class CocoExporter {
             Map<Integer, Integer> frameIndexToImageId
     ) {
         List<Map<String, Object>> annotations = new ArrayList<>();
-
         int annotationId = 1;
 
         for (AnnotationPolygon polygon : annotationProject.getAllPolygons()) {
@@ -114,11 +114,16 @@ public class CocoExporter {
                 continue;
             }
 
-            Map<String, Object> annotation = new LinkedHashMap<>();
+            Integer categoryId = CATEGORY_IDS.get(polygon.getCategoryName());
 
+            if (categoryId == null) {
+                throw new IllegalArgumentException("Unknown category: " + polygon.getCategoryName());
+            }
+
+            Map<String, Object> annotation = new LinkedHashMap<>();
             annotation.put("id", annotationId);
             annotation.put("image_id", imageId);
-            annotation.put("category_id", CATEGORY_IDS.get(polygon.getCategoryName()));
+            annotation.put("category_id", categoryId);
             annotation.put("segmentation", List.of(buildSegmentation(polygon)));
             annotation.put("area", calculatePolygonArea(polygon));
             annotation.put("bbox", calculateBoundingBox(polygon));

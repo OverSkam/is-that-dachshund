@@ -7,7 +7,11 @@ import overskam.projectH.model.AnnotationPolygon;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class CocoImporter {
 
@@ -19,7 +23,7 @@ public class CocoImporter {
             5, "instrument"
     );
 
-    public List<AnnotationPolygon> importPolygons(File inputFile) throws IOException {
+    public CocoImportResult importProject(File inputFile) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
 
         Map<String, Object> coco = objectMapper.readValue(
@@ -29,7 +33,6 @@ public class CocoImporter {
 
         Map<Integer, Integer> imageIdToFrameIndex = buildImageIdToFrameIndex(coco);
         List<Map<String, Object>> annotations = getList(coco, "annotations");
-
         List<AnnotationPolygon> polygons = new ArrayList<>();
 
         for (Map<String, Object> annotation : annotations) {
@@ -40,7 +43,38 @@ public class CocoImporter {
             }
         }
 
-        return polygons;
+        List<Map<String, Object>> images = getList(coco, "images");
+        String operationId = "UNKNOWN_OPERATION";
+        int imageWidth = 0;
+        int imageHeight = 0;
+
+        if (!images.isEmpty()) {
+            Map<String, Object> firstImage = images.get(0);
+
+            operationId = getString(firstImage, "operation_id", operationId);
+
+            if ("UNKNOWN_OPERATION".equals(operationId)) {
+                operationId = inferOperationIdFromFileName(getString(firstImage, "file_name", ""));
+            }
+
+            Integer width = getInt(firstImage, "width");
+            Integer height = getInt(firstImage, "height");
+
+            if (width != null) {
+                imageWidth = width;
+            }
+
+            if (height != null) {
+                imageHeight = height;
+            }
+        }
+
+        return new CocoImportResult(
+                polygons,
+                operationId,
+                imageWidth,
+                imageHeight
+        );
     }
 
     private Map<Integer, Integer> buildImageIdToFrameIndex(Map<String, Object> coco) {
@@ -51,7 +85,11 @@ public class CocoImporter {
             Integer imageId = getInt(image, "id");
             Integer frameIndex = getInt(image, "frame_index");
 
-            if (imageId != null && frameIndex != null) {
+            if (imageId != null) {
+                if (frameIndex == null) {
+                    frameIndex = imageId;
+                }
+
                 result.put(imageId, frameIndex);
             }
         }
@@ -123,6 +161,33 @@ public class CocoImporter {
         }
 
         return points;
+    }
+
+    private String inferOperationIdFromFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "UNKNOWN_OPERATION";
+        }
+
+        String normalized = fileName.replace('\\', '/');
+        int slashIndex = normalized.lastIndexOf('/');
+
+        if (slashIndex >= 0) {
+            normalized = normalized.substring(slashIndex + 1);
+        }
+
+        int frameMarkerIndex = normalized.indexOf("_frame_");
+
+        if (frameMarkerIndex > 0) {
+            return normalized.substring(0, frameMarkerIndex);
+        }
+
+        int dotIndex = normalized.lastIndexOf('.');
+
+        if (dotIndex > 0) {
+            return normalized.substring(0, dotIndex);
+        }
+
+        return normalized;
     }
 
     @SuppressWarnings("unchecked")
