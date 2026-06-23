@@ -1,0 +1,49 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos-x64:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build fat JAR
+        run: mvn -B package
+
+      - name: Prepare package input
+        run: |
+          mkdir -p package-input
+          cp target/projectH-1.0-SNAPSHOT-all.jar package-input/
+
+      - name: Build unsigned DMG
+        run: |
+          jpackage \
+            --type dmg \
+            --name MedicalVideoAnnotator \
+            --input package-input \
+            --main-jar projectH-1.0-SNAPSHOT-all.jar \
+            --main-class overskam.projectH.Launcher \
+            --dest dist/macos \
+            --vendor overskam \
+            --app-version 1.0.0
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MedicalVideoAnnotator-macos-x64
+          path: dist/macos/*.dmg
+          if-no-files-found: error
