@@ -1,5 +1,7 @@
 package overskam.projectH.controller;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -10,12 +12,15 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import overskam.projectH.export.CocoExporter;
 import overskam.projectH.export.CocoImportResult;
 import overskam.projectH.export.CocoImporter;
+import javafx.util.Duration;
 import overskam.projectH.model.AnnotatedFrame;
 import overskam.projectH.model.AnnotationPolygon;
 import overskam.projectH.model.AnnotationProject;
+import overskam.projectH.model.CategoryStore;
 import overskam.projectH.model.SelectedPolygonEdge;
 import overskam.projectH.model.SelectedPolygonPoint;
 import overskam.projectH.render.CanvasRenderer;
@@ -27,6 +32,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class AnnotationController {
 
@@ -35,6 +41,7 @@ public class AnnotationController {
     private final AnnotationProject annotationProject = new AnnotationProject();
     private final CocoExporter cocoExporter = new CocoExporter();
     private final CocoImporter cocoImporter = new CocoImporter();
+    private final CategoryStore categoryStore = new CategoryStore();
 
     private final GraphicsContext gc;
     private final double canvasWidth;
@@ -57,6 +64,8 @@ public class AnnotationController {
     private Label statusLabel;
     private Label frameLabelControl;
     private ListView<AnnotatedFrame> annotatedFramesList;
+    private Timeline previousFrameTimeline;
+    private Timeline nextFrameTimeline;
 
     private InteractionMode interactionMode = InteractionMode.DRAW;
 
@@ -228,8 +237,11 @@ public class AnnotationController {
                 setInteractionMode(InteractionMode.DRAW, modeLabel);
                 event.consume();
             } else if (event.getCode() == KeyCode.E) {
-                editModeButton.setSelected(true);
-                setInteractionMode(InteractionMode.EDIT, modeLabel);
+                if (requestSetInteractionMode(InteractionMode.EDIT, modeLabel)) {
+                    editModeButton.setSelected(true);
+                } else {
+                    restoreModeButtons(drawModeButton, editModeButton);
+                }
                 event.consume();
             }
         });
@@ -243,6 +255,7 @@ public class AnnotationController {
             TextField frameInput,
             Button goToFrameButton,
             Button closePolygonButton,
+            Button reopenPolygonButton,
             Button applyMetadataButton,
             Button deleteSelectedButton,
             Button clearFrameButton,
@@ -256,6 +269,8 @@ public class AnnotationController {
             Label statusLabel,
             TextField operationIdInput,
             ComboBox<String> categoryComboBox,
+            TextField newCategoryInput,
+            Button addCategoryButton,
             ComboBox<String> confidenceComboBox,
             TextField uncertaintyInput
     ) {
@@ -265,23 +280,126 @@ public class AnnotationController {
         this.selectionLabel = selectionLabel;
         this.statusLabel = statusLabel;
         frameLabelControl = frameLabel;
+        loadCategories(categoryComboBox);
 
         openVideoButton.setOnAction(event -> openVideo(stage, frameLabel, operationIdInput));
-        previousFrameButton.setOnAction(event -> showPreviousFrame(frameLabel));
-        nextFrameButton.setOnAction(event -> showNextFrame(frameLabel));
+        configurePressAndHoldButton(previousFrameButton, () -> showPreviousFrame(frameLabel), true);
+        configurePressAndHoldButton(nextFrameButton, () -> showNextFrame(frameLabel), false);
         goToFrameButton.setOnAction(event -> goToFrame(frameInput, frameLabel));
+        addCategoryButton.setOnAction(event -> addCategory(categoryComboBox, newCategoryInput));
+        newCategoryInput.setOnAction(event -> addCategory(categoryComboBox, newCategoryInput));
         closePolygonButton.setOnAction(event -> closeCurrentPolygon(
                 categoryComboBox, confidenceComboBox, uncertaintyInput
         ));
+        reopenPolygonButton.setOnAction(event -> reopenLastPolygon(modeLabel, drawModeButton, editModeButton));
         applyMetadataButton.setOnAction(event -> applySelectedMetadata());
         deleteSelectedButton.setOnAction(event -> removeSelectedPolygon());
         clearFrameButton.setOnAction(event -> clearCurrentFrame(stage));
         importCocoButton.setOnAction(event -> importCoco(stage, operationIdInput));
         exportCocoButton.setOnAction(event -> exportCoco(stage, operationIdInput));
         drawModeButton.setOnAction(event -> setInteractionMode(InteractionMode.DRAW, modeLabel));
-        editModeButton.setOnAction(event -> setInteractionMode(InteractionMode.EDIT, modeLabel));
+        editModeButton.setOnAction(event -> {
+            if (!requestSetInteractionMode(InteractionMode.EDIT, modeLabel)) {
+                restoreModeButtons(drawModeButton, editModeButton);
+                event.consume();
+            }
+        });
     }
 
+
+    private void configurePressAndHoldButton(Button button, Runnable frameAction, boolean previousDirection) {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(80), event -> frameAction.run()));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        boolean[] mousePressHandled = {false};
+
+        if (previousDirection) {
+            previousFrameTimeline = timeline;
+        } else {
+            nextFrameTimeline = timeline;
+        }
+
+        button.setOnMousePressed(event -> {
+            mousePressHandled[0] = true;
+            frameAction.run();
+            timeline.playFromStart();
+            event.consume();
+        });
+        button.setOnMouseReleased(event -> timeline.stop());
+        button.setOnMouseExited(event -> timeline.stop());
+        button.setOnAction(event -> {
+            if (mousePressHandled[0]) {
+                mousePressHandled[0] = false;
+                return;
+            }
+
+            frameAction.run();
+        });
+    }
+
+    private void loadCategories(ComboBox<String> categoryComboBox) {
+        List<String> categories = categoryStore.loadCategories();
+        categoryComboBox.getItems().setAll(categories);
+
+        if (!categories.isEmpty() && categoryComboBox.getValue() == null) {
+            categoryComboBox.setValue(categories.getFirst());
+        }
+    }
+
+    private void addCategory(ComboBox<String> categoryComboBox, TextField newCategoryInput) {
+        String categoryName = categoryStore.normalizeCategoryName(newCategoryInput.getText());
+
+        if (categoryName.isBlank()) {
+            setStatus("Enter class name");
+            return;
+        }
+
+        if (!categoryComboBox.getItems().contains(categoryName)) {
+            categoryComboBox.getItems().add(categoryName);
+            saveCategories(categoryComboBox.getItems());
+        }
+
+        categoryComboBox.setValue(categoryName);
+        newCategoryInput.clear();
+        setStatus("Added class: " + categoryName);
+    }
+
+    private void addImportedCategories(List<AnnotationPolygon> polygons) {
+        if (categoryControl == null) {
+            return;
+        }
+
+        boolean changed = false;
+
+        for (AnnotationPolygon polygon : polygons) {
+            String categoryName = categoryStore.normalizeCategoryName(polygon.getCategoryName());
+
+            if (!categoryName.isBlank() && !categoryControl.getItems().contains(categoryName)) {
+                categoryControl.getItems().add(categoryName);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            saveCategories(categoryControl.getItems());
+        }
+    }
+
+    private void saveCategories(List<String> categories) {
+        try {
+            categoryStore.saveCategories(categories);
+        } catch (IOException e) {
+            setStatus("Could not save classes: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private List<String> getCategoryNames() {
+        if (categoryControl == null) {
+            return categoryStore.loadCategories();
+        }
+
+        return new ArrayList<>(categoryControl.getItems());
+    }
     private void goToAnnotatedFrame(int frameIndex) {
         try {
             Image frame = videoFrameReader.readFrameAt(frameIndex);
@@ -475,7 +593,8 @@ public class AnnotationController {
                     outputFile,
                     operationId,
                     (int) currentImageWidth,
-                    (int) currentImageHeight
+                    (int) currentImageHeight,
+                    getCategoryNames()
             );
 
             Image restoredFrame = videoFrameReader.readCurrentFrameAgain();
@@ -669,27 +788,27 @@ public class AnnotationController {
         }
     }
 
-    private void closeCurrentPolygon(
+    private boolean closeCurrentPolygon(
             ComboBox<String> categoryComboBox,
             ComboBox<String> confidenceComboBox,
             TextField uncertaintyInput
     ) {
         if (currentPolygonPoints.size() < 3) {
             setStatus("Add at least 3 points before closing");
-            return;
+            return false;
         }
 
         int frameIndex = videoFrameReader.getCurrentFrameIndex();
         if (frameIndex < 0) {
             setStatus("Open a video before annotation");
-            return;
+            return false;
         }
 
         String category = categoryComboBox.getValue();
         String confidence = confidenceComboBox.getValue();
         if (category == null || confidence == null) {
             setStatus("Choose category and confidence");
-            return;
+            return false;
         }
 
         annotationProject.addPolygon(new AnnotationPolygon(
@@ -704,6 +823,7 @@ public class AnnotationController {
         refreshAnnotatedFrames();
         redrawCanvas();
         setStatus("Closed polygon: " + category);
+        return true;
     }
 
     private void removeLastCurrentPolygonPoint() {
@@ -753,6 +873,88 @@ public class AnnotationController {
         redrawCanvas();
     }
 
+
+    private boolean requestSetInteractionMode(InteractionMode newMode, Label modeLabel) {
+        if (newMode != InteractionMode.EDIT || currentPolygonPoints.isEmpty()) {
+            setInteractionMode(newMode, modeLabel);
+            return true;
+        }
+
+        ButtonType closeButton = new ButtonType("Close Polygon");
+        ButtonType editButton = new ButtonType("Edit Without Closing");
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Unclosed polygon");
+        alert.setHeaderText("You have an unclosed polygon on the current frame");
+        alert.setContentText("Close it before switching to Edit mode?");
+        alert.getButtonTypes().setAll(closeButton, editButton, cancelButton);
+
+        Window owner = modeLabel.getScene() == null ? null : modeLabel.getScene().getWindow();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+
+        Optional<ButtonType> result = alert.showAndWait();
+
+        if (result.isEmpty() || result.get() == cancelButton) {
+            setStatus("Stayed in Draw mode");
+            return false;
+        }
+
+        if (result.get() == closeButton && !closeCurrentPolygon(categoryControl, confidenceControl, uncertaintyControl)) {
+            return false;
+        }
+
+        setInteractionMode(InteractionMode.EDIT, modeLabel);
+        return true;
+    }
+
+    private void restoreModeButtons(ToggleButton drawModeButton, ToggleButton editModeButton) {
+        if (interactionMode == InteractionMode.DRAW) {
+            drawModeButton.setSelected(true);
+        } else {
+            editModeButton.setSelected(true);
+        }
+    }
+
+    private void reopenLastPolygon(
+            Label modeLabel,
+            ToggleButton drawModeButton,
+            ToggleButton editModeButton
+    ) {
+        if (!currentPolygonPoints.isEmpty()) {
+            setStatus("Close or clear current polygon before reopening another one");
+            return;
+        }
+
+        int frameIndex = videoFrameReader.getCurrentFrameIndex();
+        if (frameIndex < 0) {
+            setStatus("Open a video before reopening polygons");
+            return;
+        }
+
+        AnnotationPolygon polygon = annotationProject.removeLastPolygonForFrameAndReturn(frameIndex);
+        if (polygon == null) {
+            setStatus("No closed polygon on current frame");
+            return;
+        }
+
+        currentPolygonPoints.addAll(polygon.getPoints());
+
+        if (categoryControl != null) {
+            categoryControl.setValue(polygon.getCategoryName());
+            confidenceControl.setValue(polygon.getConfidence());
+            uncertaintyControl.setText(polygon.getUncertaintyReason());
+        }
+
+        drawModeButton.setSelected(true);
+        setInteractionMode(InteractionMode.DRAW, modeLabel);
+        clearSelection();
+        refreshAnnotatedFrames();
+        redrawCanvas();
+        setStatus("Reopened polygon: " + polygon.getCategoryName());
+    }
     private String buildOperationIdFromVideoFile() {
         if (importedOperationId != null && !importedOperationId.isBlank()) {
             return importedOperationId;

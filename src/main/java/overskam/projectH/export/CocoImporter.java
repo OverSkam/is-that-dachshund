@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.geometry.Point2D;
 import overskam.projectH.model.AnnotationPolygon;
+import overskam.projectH.model.CategoryStore;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,14 +16,6 @@ import java.util.Map;
 
 public class CocoImporter {
 
-    private static final Map<Integer, String> CATEGORY_NAMES = Map.of(
-            1, "gallbladder",
-            2, "cystic_duct",
-            3, "cystic_artery",
-            4, "liver",
-            5, "instrument"
-    );
-
     public CocoImportResult importProject(File inputFile) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -32,11 +25,12 @@ public class CocoImporter {
         );
 
         Map<Integer, Integer> imageIdToFrameIndex = buildImageIdToFrameIndex(coco);
+        Map<Integer, String> categoryNames = buildCategoryNames(coco);
         List<Map<String, Object>> annotations = getList(coco, "annotations");
         List<AnnotationPolygon> polygons = new ArrayList<>();
 
         for (Map<String, Object> annotation : annotations) {
-            AnnotationPolygon polygon = parseAnnotation(annotation, imageIdToFrameIndex);
+            AnnotationPolygon polygon = parseAnnotation(annotation, imageIdToFrameIndex, categoryNames);
 
             if (polygon != null) {
                 polygons.add(polygon);
@@ -97,9 +91,35 @@ public class CocoImporter {
         return result;
     }
 
+    private Map<Integer, String> buildCategoryNames(Map<String, Object> coco) {
+        List<Map<String, Object>> categories = getList(coco, "categories");
+        Map<Integer, String> result = new HashMap<>();
+
+        for (Map<String, Object> category : categories) {
+            Integer categoryId = getInt(category, "id");
+            String categoryName = getString(category, "name", "");
+
+            if (categoryId != null && !categoryName.isBlank()) {
+                result.put(categoryId, categoryName);
+            }
+        }
+
+        if (result.isEmpty()) {
+            int categoryId = 1;
+
+            for (String defaultCategory : CategoryStore.DEFAULT_CATEGORIES) {
+                result.put(categoryId, defaultCategory);
+                categoryId++;
+            }
+        }
+
+        return result;
+    }
+
     private AnnotationPolygon parseAnnotation(
             Map<String, Object> annotation,
-            Map<Integer, Integer> imageIdToFrameIndex
+            Map<Integer, Integer> imageIdToFrameIndex,
+            Map<Integer, String> categoryNames
     ) {
         Integer imageId = getInt(annotation, "image_id");
         Integer categoryId = getInt(annotation, "category_id");
@@ -109,7 +129,7 @@ public class CocoImporter {
         }
 
         Integer frameIndex = imageIdToFrameIndex.get(imageId);
-        String categoryName = CATEGORY_NAMES.get(categoryId);
+        String categoryName = categoryNames.get(categoryId);
 
         if (frameIndex == null || categoryName == null) {
             return null;

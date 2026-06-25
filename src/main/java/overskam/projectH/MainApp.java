@@ -28,17 +28,22 @@ public class MainApp extends Application {
         Button nextFrameButton = new Button("Next");
         Button goToFrameButton = new Button("Go");
         Button closePolygonButton = new Button("Close Polygon");
+        Button reopenPolygonButton = new Button("Reopen Last Polygon");
         Button applyMetadataButton = new Button("Apply Metadata");
         Button deleteSelectedButton = new Button("Delete Selected");
         Button clearFrameButton = new Button("Clear Frame");
         Button importCocoButton = new Button("Import COCO");
         Button exportCocoButton = new Button("Export COCO");
+        Button addCategoryButton = new Button("Add");
 
         TextField frameInput = new TextField();
         frameInput.setPromptText("Frame #");
 
         TextField operationIdInput = new TextField();
         operationIdInput.setPromptText("Operation ID");
+
+        TextField newCategoryInput = new TextField();
+        newCategoryInput.setPromptText("New class name");
 
         ToggleButton drawModeButton = new ToggleButton("Draw");
         ToggleButton editModeButton = new ToggleButton("Edit");
@@ -48,14 +53,6 @@ public class MainApp extends Application {
         drawModeButton.setSelected(true);
 
         ComboBox<String> categoryComboBox = new ComboBox<>();
-        categoryComboBox.getItems().addAll(
-                "gallbladder",
-                "cystic_duct",
-                "cystic_artery",
-                "liver",
-                "instrument"
-        );
-        categoryComboBox.setValue("gallbladder");
         categoryComboBox.setMaxWidth(Double.MAX_VALUE);
 
         ComboBox<String> confidenceComboBox = new ComboBox<>();
@@ -104,6 +101,9 @@ public class MainApp extends Application {
         drawModeButton.setMaxWidth(Double.MAX_VALUE);
         editModeButton.setMaxWidth(Double.MAX_VALUE);
 
+        HBox addCategoryRow = new HBox(6, newCategoryInput, addCategoryButton);
+        HBox.setHgrow(newCategoryInput, Priority.ALWAYS);
+
         VBox annotationPanel = new VBox(
                 8,
                 sectionLabel("ANNOTATION"),
@@ -111,9 +111,11 @@ public class MainApp extends Application {
                 modeLabel,
                 new Separator(),
                 labeledControl("Category", categoryComboBox),
+                addCategoryRow,
                 labeledControl("Confidence", confidenceComboBox),
                 labeledControl("Uncertainty", uncertaintyInput),
                 closePolygonButton,
+                reopenPolygonButton,
                 new Separator(),
                 sectionLabel("SELECTED POLYGON"),
                 selectionLabel,
@@ -131,12 +133,15 @@ public class MainApp extends Application {
         makeFullWidth(
                 openVideoButton,
                 closePolygonButton,
+                reopenPolygonButton,
                 applyMetadataButton,
                 deleteSelectedButton,
                 clearFrameButton,
                 importCocoButton,
                 exportCocoButton,
+                addCategoryButton,
                 operationIdInput,
+                newCategoryInput,
                 uncertaintyInput
         );
         HBox.setHgrow(frameInput, Priority.ALWAYS);
@@ -161,6 +166,7 @@ public class MainApp extends Application {
         root.setBottom(statusBar);
 
         Scene scene = new Scene(root, 1340, 760);
+        scene.getStylesheets().add(getClass().getResource("/dark-theme.css").toExternalForm());
 
         AnnotationController controller = new AnnotationController(gc, CANVAS_WIDTH, CANVAS_HEIGHT);
         controller.showInitialImage("/tb.png");
@@ -183,6 +189,7 @@ public class MainApp extends Application {
                 frameInput,
                 goToFrameButton,
                 closePolygonButton,
+                reopenPolygonButton,
                 applyMetadataButton,
                 deleteSelectedButton,
                 clearFrameButton,
@@ -196,6 +203,8 @@ public class MainApp extends Application {
                 statusLabel,
                 operationIdInput,
                 categoryComboBox,
+                newCategoryInput,
+                addCategoryButton,
                 confidenceComboBox,
                 uncertaintyInput
         );
@@ -215,8 +224,7 @@ public class MainApp extends Application {
 
     private VBox labeledControl(String labelText, Control control) {
         Label label = new Label(labelText);
-        VBox box = new VBox(3, label, control);
-        return box;
+        return new VBox(3, label, control);
     }
 
     private void makeFullWidth(Control... controls) {

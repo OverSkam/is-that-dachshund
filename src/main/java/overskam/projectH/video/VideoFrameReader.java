@@ -4,16 +4,17 @@ import javafx.scene.image.Image;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.JavaFXFrameConverter;
 import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.javacv.JavaFXFrameConverter;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 
-import java.io.File;
-
 public class VideoFrameReader implements AutoCloseable {
+
+    private static final int SEEK_WARMUP_FRAMES = 30;
 
     private FFmpegFrameGrabber grabber;
     private final JavaFXFrameConverter converter = new JavaFXFrameConverter();
@@ -28,41 +29,39 @@ public class VideoFrameReader implements AutoCloseable {
 
         Frame frame = grabber.grabImage();
 
-        if (frame == null)
+        if (frame == null) {
             throw new FrameGrabber.Exception("Could not read first video frame");
+        }
 
         currentFrameIndex = 0;
 
-        return converter.convert(frame);
+        return converter.convert(frame.clone());
     }
 
     public Image readNextFrame() throws FrameGrabber.Exception {
-        if (grabber == null)
+        if (grabber == null) {
             return null;
+        }
 
-        Frame frame = grabber.grabImage();
+        Frame frame = grabNextImageFrame();
 
-        if (frame == null)
+        if (frame == null) {
             return null;
+        }
 
         currentFrameIndex++;
-        return converter.convert(frame);
+        return converter.convert(frame.clone());
     }
 
     public Image readFrameAt(int frameIndex) throws FrameGrabber.Exception {
-        if (grabber == null || frameIndex < 0)
+        Frame frame = grabFrameAt(frameIndex);
+
+        if (frame == null) {
             return null;
-
-        grabber.setVideoFrameNumber(frameIndex);
-
-        Frame frame = grabber.grabImage();
-
-        if (frame == null)
-            return null;
+        }
 
         currentFrameIndex = frameIndex;
-
-        return converter.convert(frame);
+        return converter.convert(frame.clone());
     }
 
     public Image readPreviousFrame() throws FrameGrabber.Exception {
@@ -79,23 +78,13 @@ public class VideoFrameReader implements AutoCloseable {
 
     public void saveFrameAsJpeg(int frameIndex, File outputFile)
             throws FrameGrabber.Exception, IOException {
-        if (grabber == null) {
-            return;
-        }
-
-        if (frameIndex < 0) {
-            return;
-        }
-
-        grabber.setVideoFrameNumber(frameIndex);
-
-        Frame frame = grabber.grabImage();
+        Frame frame = grabFrameAt(frameIndex);
 
         if (frame == null) {
             return;
         }
 
-        BufferedImage bufferedImage = imageFileConverter.convert(frame);
+        BufferedImage bufferedImage = imageFileConverter.convert(frame.clone());
 
         if (bufferedImage == null) {
             return;
@@ -110,6 +99,37 @@ public class VideoFrameReader implements AutoCloseable {
         }
 
         return readFrameAt(currentFrameIndex);
+    }
+
+    private Frame grabFrameAt(int frameIndex) throws FrameGrabber.Exception {
+        if (grabber == null || frameIndex < 0) {
+            return null;
+        }
+
+        int seekStartFrame = Math.max(0, frameIndex - SEEK_WARMUP_FRAMES);
+        grabber.setVideoFrameNumber(seekStartFrame);
+
+        Frame frame = null;
+
+        for (int index = seekStartFrame; index <= frameIndex; index++) {
+            frame = grabNextImageFrame();
+
+            if (frame == null) {
+                return null;
+            }
+        }
+
+        return frame;
+    }
+
+    private Frame grabNextImageFrame() throws FrameGrabber.Exception {
+        Frame frame;
+
+        do {
+            frame = grabber.grab();
+        } while (frame != null && frame.image == null);
+
+        return frame;
     }
 
     @Override

@@ -71,6 +71,19 @@ public class AnnotationProject {
         return false;
     }
 
+
+    public AnnotationPolygon removeLastPolygonForFrameAndReturn(int frameIndex) {
+        for (int i = polygons.size() - 1; i >= 0; i--) {
+            AnnotationPolygon polygon = polygons.get(i);
+
+            if (polygon.getFrameIndex() == frameIndex) {
+                polygons.remove(i);
+                return polygon;
+            }
+        }
+
+        return null;
+    }
     public int removePolygonsForFrame(int frameIndex) {
         int polygonCountBefore = polygons.size();
         polygons.removeIf(polygon -> polygon.getFrameIndex() == frameIndex);

@@ -11,28 +11,24 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class CocoExporter {
-
-    private static final Map<String, Integer> CATEGORY_IDS = Map.of(
-            "gallbladder", 1,
-            "cystic_duct", 2,
-            "cystic_artery", 3,
-            "liver", 4,
-            "instrument", 5
-    );
 
     public void export(
             AnnotationProject annotationProject,
             File outputFile,
             String operationId,
             int imageWidth,
-            int imageHeight
+            int imageHeight,
+            List<String> categoryNames
     ) throws IOException {
         Map<String, Object> coco = new LinkedHashMap<>();
         Map<Integer, Integer> frameIndexToImageId = buildFrameIndexToImageId(annotationProject);
+        Map<String, Integer> categoryIds = buildCategoryIds(annotationProject, categoryNames);
 
         coco.put("info", buildInfo());
         coco.put("licenses", List.of());
@@ -43,8 +39,8 @@ public class CocoExporter {
                 imageHeight,
                 frameIndexToImageId
         ));
-        coco.put("annotations", buildAnnotations(annotationProject, frameIndexToImageId));
-        coco.put("categories", buildCategories());
+        coco.put("annotations", buildAnnotations(annotationProject, frameIndexToImageId, categoryIds));
+        coco.put("categories", buildCategories(categoryIds));
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
@@ -69,6 +65,31 @@ public class CocoExporter {
         }
 
         return result;
+    }
+
+    private Map<String, Integer> buildCategoryIds(
+            AnnotationProject annotationProject,
+            List<String> categoryNames
+    ) {
+        Set<String> orderedCategoryNames = new LinkedHashSet<>(categoryNames);
+
+        for (AnnotationPolygon polygon : annotationProject.getAllPolygons()) {
+            orderedCategoryNames.add(polygon.getCategoryName());
+        }
+
+        Map<String, Integer> categoryIds = new LinkedHashMap<>();
+        int categoryId = 1;
+
+        for (String categoryName : orderedCategoryNames) {
+            if (categoryName == null || categoryName.isBlank()) {
+                continue;
+            }
+
+            categoryIds.put(categoryName, categoryId);
+            categoryId++;
+        }
+
+        return categoryIds;
     }
 
     private List<Map<String, Object>> buildImages(
@@ -102,7 +123,8 @@ public class CocoExporter {
 
     private List<Map<String, Object>> buildAnnotations(
             AnnotationProject annotationProject,
-            Map<Integer, Integer> frameIndexToImageId
+            Map<Integer, Integer> frameIndexToImageId,
+            Map<String, Integer> categoryIds
     ) {
         List<Map<String, Object>> annotations = new ArrayList<>();
         int annotationId = 1;
@@ -114,7 +136,7 @@ public class CocoExporter {
                 continue;
             }
 
-            Integer categoryId = CATEGORY_IDS.get(polygon.getCategoryName());
+            Integer categoryId = categoryIds.get(polygon.getCategoryName());
 
             if (categoryId == null) {
                 throw new IllegalArgumentException("Unknown category: " + polygon.getCategoryName());
@@ -190,10 +212,10 @@ public class CocoExporter {
         );
     }
 
-    private List<Map<String, Object>> buildCategories() {
+    private List<Map<String, Object>> buildCategories(Map<String, Integer> categoryIds) {
         List<Map<String, Object>> categories = new ArrayList<>();
 
-        for (Map.Entry<String, Integer> entry : CATEGORY_IDS.entrySet()) {
+        for (Map.Entry<String, Integer> entry : categoryIds.entrySet()) {
             Map<String, Object> category = new LinkedHashMap<>();
             category.put("id", entry.getValue());
             category.put("name", entry.getKey());
