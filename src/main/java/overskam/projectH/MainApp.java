@@ -27,14 +27,19 @@ public class MainApp extends Application {
         Button previousFrameButton = new Button("Previous");
         Button nextFrameButton = new Button("Next");
         Button goToFrameButton = new Button("Go");
+        Button resetViewButton = new Button("Reset View");
+        Button reloadFrameButton = new Button("Reload Frame");
+        Button markProblemFrameButton = new Button("Mark Problem Frame");
         Button closePolygonButton = new Button("Close Polygon");
         Button reopenPolygonButton = new Button("Reopen Last Polygon");
-        Button applyMetadataButton = new Button("Apply Metadata");
         Button deleteSelectedButton = new Button("Delete Selected");
         Button clearFrameButton = new Button("Clear Frame");
+        Button saveProjectButton = new Button("Save Project");
+        Button loadProjectButton = new Button("Load Project");
         Button importCocoButton = new Button("Import COCO");
         Button exportCocoButton = new Button("Export COCO");
         Button addCategoryButton = new Button("Add");
+        Button bindCategoryKeyButton = new Button("Bind Key");
 
         TextField frameInput = new TextField();
         frameInput.setPromptText("Frame #");
@@ -55,6 +60,11 @@ public class MainApp extends Application {
         ComboBox<String> categoryComboBox = new ComboBox<>();
         categoryComboBox.setMaxWidth(Double.MAX_VALUE);
 
+        ComboBox<String> frameQualityComboBox = new ComboBox<>();
+        frameQualityComboBox.getItems().addAll("ok", "decode_artifact", "blurred", "occluded");
+        frameQualityComboBox.setValue("ok");
+        frameQualityComboBox.setMaxWidth(Double.MAX_VALUE);
+
         ComboBox<String> confidenceComboBox = new ComboBox<>();
         confidenceComboBox.getItems().addAll("high", "medium", "low");
         confidenceComboBox.setValue("high");
@@ -67,9 +77,12 @@ public class MainApp extends Application {
         ListView<AnnotatedFrame> annotatedFramesList = new ListView<>();
 
         Label frameLabel = new Label("Frame: -");
+        Label frameStatusLabel = new Label("Frame status: ok");
+        Label zoomLabel = new Label("Zoom: 100%");
         Label modeLabel = new Label("Mode: DRAW");
         Label selectionLabel = new Label("Selected: none");
         Label statusLabel = new Label("Ready");
+        Label categoryBindingLabel = new Label("Key: none");
 
         Label appTitle = new Label("Medical Video Annotator");
         appTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
@@ -86,7 +99,12 @@ public class MainApp extends Application {
                 sectionLabel("NAVIGATION"),
                 new HBox(6, previousFrameButton, nextFrameButton),
                 new HBox(6, frameInput, goToFrameButton),
+                new HBox(6, resetViewButton, reloadFrameButton),
+                markProblemFrameButton,
+                labeledControl("Frame Quality", frameQualityComboBox),
                 frameLabel,
+                frameStatusLabel,
+                zoomLabel,
                 new Separator(),
                 sectionLabel("ANNOTATED FRAMES"),
                 annotatedFramesList
@@ -104,6 +122,10 @@ public class MainApp extends Application {
         HBox addCategoryRow = new HBox(6, newCategoryInput, addCategoryButton);
         HBox.setHgrow(newCategoryInput, Priority.ALWAYS);
 
+        HBox categoryKeyRow = new HBox(6, bindCategoryKeyButton, categoryBindingLabel);
+        categoryKeyRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(categoryBindingLabel, Priority.ALWAYS);
+
         VBox annotationPanel = new VBox(
                 8,
                 sectionLabel("ANNOTATION"),
@@ -112,6 +134,7 @@ public class MainApp extends Application {
                 new Separator(),
                 labeledControl("Category", categoryComboBox),
                 addCategoryRow,
+                categoryKeyRow,
                 labeledControl("Confidence", confidenceComboBox),
                 labeledControl("Uncertainty", uncertaintyInput),
                 closePolygonButton,
@@ -119,9 +142,12 @@ public class MainApp extends Application {
                 new Separator(),
                 sectionLabel("SELECTED POLYGON"),
                 selectionLabel,
-                applyMetadataButton,
                 deleteSelectedButton,
                 clearFrameButton,
+                new Separator(),
+                sectionLabel("PROJECT"),
+                saveProjectButton,
+                loadProjectButton,
                 new Separator(),
                 sectionLabel("DATASET"),
                 importCocoButton,
@@ -134,12 +160,15 @@ public class MainApp extends Application {
                 openVideoButton,
                 closePolygonButton,
                 reopenPolygonButton,
-                applyMetadataButton,
                 deleteSelectedButton,
                 clearFrameButton,
+                saveProjectButton,
+                loadProjectButton,
                 importCocoButton,
                 exportCocoButton,
                 addCategoryButton,
+                bindCategoryKeyButton,
+                frameQualityComboBox,
                 operationIdInput,
                 newCategoryInput,
                 uncertaintyInput
@@ -188,23 +217,32 @@ public class MainApp extends Application {
                 nextFrameButton,
                 frameInput,
                 goToFrameButton,
+                resetViewButton,
+                reloadFrameButton,
+                markProblemFrameButton,
                 closePolygonButton,
                 reopenPolygonButton,
-                applyMetadataButton,
                 deleteSelectedButton,
                 clearFrameButton,
+                saveProjectButton,
+                loadProjectButton,
                 importCocoButton,
                 exportCocoButton,
                 drawModeButton,
                 editModeButton,
                 frameLabel,
+                frameStatusLabel,
+                zoomLabel,
                 modeLabel,
                 selectionLabel,
                 statusLabel,
                 operationIdInput,
+                frameQualityComboBox,
                 categoryComboBox,
                 newCategoryInput,
                 addCategoryButton,
+                bindCategoryKeyButton,
+                categoryBindingLabel,
                 confidenceComboBox,
                 uncertaintyInput
         );

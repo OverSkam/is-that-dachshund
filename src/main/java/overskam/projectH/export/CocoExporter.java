@@ -110,6 +110,8 @@ public class CocoExporter {
             image.put("height", imageHeight);
             image.put("operation_id", operationId);
             image.put("frame_index", frameIndex);
+            image.put("problem_frame", annotationProject.isProblemFrame(frameIndex));
+            image.put("frame_quality", annotationProject.getFrameQuality(frameIndex));
 
             images.add(image);
         }

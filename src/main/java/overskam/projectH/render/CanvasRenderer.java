@@ -8,23 +8,46 @@ import javafx.scene.text.Font;
 import overskam.projectH.model.AnnotationPolygon;
 import overskam.projectH.model.SelectedPolygonPoint;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class CanvasRenderer {
+    private static final Color[] CATEGORY_PALETTE = {
+            Color.rgb(144, 255, 144),  // 1 light green
+            Color.rgb(255, 0, 0),      // 2 red
+            Color.rgb(255, 128, 0),    // 3 orange
+            Color.rgb(190, 140, 255),  // 4 light purple
+            Color.rgb(255, 64, 192),   // 5 pink
+            Color.rgb(0, 220, 255),    // 6 light blue
+            Color.rgb(0, 64, 255),     // 7 bright blue
+            Color.rgb(0, 220, 0),      // 8 green
+            Color.rgb(255, 255, 0),    // 9 yellow
+            Color.rgb(255, 0, 255)     // 10 magenta
+    };
+
+    private final Map<String, Integer> categoryColorIndexes = new LinkedHashMap<>();
+
 
     private ImageViewport currentViewport;
+    private double zoom = 1.0;
+    private double panX;
+    private double panY;
 
     public void redraw(
             GraphicsContext gc,
             double canvasWidth,
             double canvasHeight,
             Image currentImage,
+            List<String> categoryNames,
             List<AnnotationPolygon> completedPolygons,
             List<Point2D> currentPolygonPoints,
             AnnotationPolygon selectedPolygon,
             SelectedPolygonPoint hoveredPoint
     ) {
         gc.clearRect(0, 0, canvasWidth, canvasHeight);
+        updateCategoryColorIndexes(categoryNames);
+
 
         if (currentImage != null) {
             drawImageKeepingAspectRatio(gc, canvasWidth, canvasHeight, currentImage);
@@ -47,11 +70,11 @@ public class CanvasRenderer {
     ) {
         double imageWidth = image.getWidth();
         double imageHeight = image.getHeight();
-        double scale = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight);
+        double scale = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight) * zoom;
         double drawWidth = imageWidth * scale;
         double drawHeight = imageHeight * scale;
-        double drawX = (canvasWidth - drawWidth) / 2;
-        double drawY = (canvasHeight - drawHeight) / 2;
+        double drawX = (canvasWidth - drawWidth) / 2 + panX;
+        double drawY = (canvasHeight - drawHeight) / 2 + panY;
 
         currentViewport = new ImageViewport(
                 imageWidth,
@@ -182,23 +205,91 @@ public class CanvasRenderer {
         );
     }
 
+    private void updateCategoryColorIndexes(List<String> categoryNames) {
+        categoryColorIndexes.clear();
+
+        if (categoryNames == null) {
+            return;
+        }
+
+        for (String categoryName : categoryNames) {
+            if (categoryName == null || categoryName.isBlank() || categoryColorIndexes.containsKey(categoryName)) {
+                continue;
+            }
+
+            categoryColorIndexes.put(categoryName, categoryColorIndexes.size());
+        }
+    }
+
     private Color getColorForCategory(String categoryName) {
-        if ("gallbladder".equals(categoryName)) {
-            return Color.LIME;
+        if (categoryName == null || categoryName.isBlank()) {
+            return CATEGORY_PALETTE[0];
         }
-        if ("cystic_duct".equals(categoryName)) {
-            return Color.CYAN;
+
+        Integer colorIndex = categoryColorIndexes.get(categoryName);
+
+        if (colorIndex == null) {
+            colorIndex = categoryColorIndexes.size();
+            categoryColorIndexes.put(categoryName, colorIndex);
         }
-        if ("cystic_artery".equals(categoryName)) {
-            return Color.RED;
+
+        return CATEGORY_PALETTE[colorIndex % CATEGORY_PALETTE.length];
+    }
+
+    private void clampPan(double canvasWidth, double canvasHeight, double drawWidth, double drawHeight) {
+        if (zoom <= 1.0001) {
+            panX = 0;
+            panY = 0;
+            return;
         }
-        if ("liver".equals(categoryName)) {
-            return Color.ORANGE;
+
+        panX = clampAxisPan(panX, canvasWidth, drawWidth);
+        panY = clampAxisPan(panY, canvasHeight, drawHeight);
+    }
+
+    private double clampAxisPan(double pan, double canvasSize, double drawSize) {
+        if (drawSize <= canvasSize) {
+            return 0;
         }
-        if ("instrument".equals(categoryName)) {
-            return Color.WHITE;
+
+        double maxPan = (drawSize - canvasSize) / 2;
+        return Math.max(-maxPan, Math.min(maxPan, pan));
+    }
+    public void zoomAt(double canvasX, double canvasY, double factor) {
+        double oldZoom = zoom;
+        zoom = Math.max(1.0, Math.min(8.0, zoom * factor));
+
+        if (Math.abs(zoom - oldZoom) < 0.0001) {
+            return;
         }
-        return Color.YELLOW;
+
+        if (zoom <= 1.0001) {
+            resetView();
+            return;
+        }
+
+        double zoomRatio = zoom / oldZoom;
+        panX *= zoomRatio;
+        panY *= zoomRatio;
+    }
+
+    public void pan(double deltaX, double deltaY) {
+        if (zoom <= 1.0) {
+            return;
+        }
+
+        panX += deltaX;
+        panY += deltaY;
+    }
+
+    public void resetView() {
+        zoom = 1.0;
+        panX = 0;
+        panY = 0;
+    }
+
+    public double getZoom() {
+        return zoom;
     }
 
     public ImageViewport getCurrentViewport() {

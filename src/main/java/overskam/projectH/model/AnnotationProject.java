@@ -5,10 +5,16 @@ import javafx.geometry.Point2D;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class AnnotationProject {
 
     private final List<AnnotationPolygon> polygons = new ArrayList<>();
+    private final Set<Integer> problemFrameIndexes = new TreeSet<>();
+    private final Map<Integer, String> frameQualities = new TreeMap<>();
 
     public void addPolygon(AnnotationPolygon polygon) {
         polygons.add(polygon);
@@ -20,6 +26,8 @@ public class AnnotationProject {
 
     public void clear() {
         polygons.clear();
+        problemFrameIndexes.clear();
+        frameQualities.clear();
     }
 
     public List<AnnotationPolygon> getPolygonsForFrame(int frameIndex) {
@@ -93,6 +101,56 @@ public class AnnotationProject {
         polygons.remove(polygon);
     }
 
+
+    public boolean toggleProblemFrame(int frameIndex) {
+        if (problemFrameIndexes.contains(frameIndex)) {
+            problemFrameIndexes.remove(frameIndex);
+            return false;
+        }
+
+        problemFrameIndexes.add(frameIndex);
+        return true;
+    }
+
+    public void setProblemFrame(int frameIndex, boolean problemFrame) {
+        if (problemFrame) {
+            problemFrameIndexes.add(frameIndex);
+        } else {
+            problemFrameIndexes.remove(frameIndex);
+        }
+    }
+
+    public boolean isProblemFrame(int frameIndex) {
+        return problemFrameIndexes.contains(frameIndex);
+    }
+
+    public Set<Integer> getProblemFrameIndexes() {
+        return Collections.unmodifiableSet(problemFrameIndexes);
+    }
+
+    public void setFrameQuality(int frameIndex, String quality) {
+        if (quality == null || quality.isBlank() || "ok".equals(quality)) {
+            frameQualities.remove(frameIndex);
+            return;
+        }
+
+        frameQualities.put(frameIndex, quality);
+    }
+
+    public String getFrameQuality(int frameIndex) {
+        return frameQualities.getOrDefault(frameIndex, "ok");
+    }
+
+    public Map<Integer, String> getFrameQualities() {
+        return Collections.unmodifiableMap(frameQualities);
+    }
+
+    public void setFrameMetadata(Set<Integer> problemFrames, Map<Integer, String> qualities) {
+        problemFrameIndexes.clear();
+        problemFrameIndexes.addAll(problemFrames);
+        frameQualities.clear();
+        frameQualities.putAll(qualities);
+    }
     public List<Integer> getAnnotatedFrameIndexes() {
         List<Integer> frameIndexes = new ArrayList<>();
 
