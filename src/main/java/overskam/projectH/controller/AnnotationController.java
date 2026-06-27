@@ -17,6 +17,8 @@ import javafx.stage.Window;
 import overskam.projectH.export.CocoExporter;
 import overskam.projectH.export.CocoImportResult;
 import overskam.projectH.export.CocoImporter;
+import overskam.projectH.export.CocoExportValidationResult;
+import overskam.projectH.export.CocoExportValidator;
 import javafx.util.Duration;
 import overskam.projectH.model.AnnotatedFrame;
 import overskam.projectH.model.AnnotationPolygon;
@@ -48,6 +50,7 @@ public class AnnotationController {
     private final AnnotationProject annotationProject = new AnnotationProject();
     private final CocoExporter cocoExporter = new CocoExporter();
     private final CocoImporter cocoImporter = new CocoImporter();
+    private final CocoExportValidator cocoExportValidator = new CocoExportValidator();
     private final CategoryStore categoryStore = new CategoryStore();
     private final CategoryKeyBindingStore categoryKeyBindingStore = new CategoryKeyBindingStore();
     private final ProjectFileStore projectFileStore = new ProjectFileStore();
@@ -1046,17 +1049,48 @@ public class AnnotationController {
     }
 
     private boolean confirmExportValidation(Stage stage) {
+        CocoExportValidationResult validationResult = cocoExportValidator.validate(
+                annotationProject,
+                (int) currentImageWidth,
+                (int) currentImageHeight,
+                getCategoryNames(),
+                !currentPolygonPoints.isEmpty()
+        );
         StringBuilder message = new StringBuilder();
         message.append("Annotated frames: ").append(annotationProject.getAnnotatedFrameCount()).append("\n");
         message.append("Polygons: ").append(annotationProject.getPolygonCount()).append("\n");
         message.append("Problem frames: ").append(annotationProject.getProblemFrameIndexes().size()).append("\n");
         message.append("Non-ok frame quality: ").append(annotationProject.getFrameQualities().size()).append("\n");
+        appendCategorySummary(message);
 
-        if (!currentPolygonPoints.isEmpty()) {
-            message.append("\nWarning: current polygon is not closed and will not be exported.\n");
+        if (validationResult.hasErrors()) {
+            appendValidationMessages(message, "Errors", validationResult.getErrors());
+            Alert alert = new Alert(Alert.AlertType.ERROR, message.toString(), ButtonType.OK);
+            alert.initOwner(stage);
+            alert.setTitle("COCO export validation");
+            alert.setHeaderText("Fix validation errors before export");
+            alert.showAndWait();
+            return false;
         }
 
+        if (validationResult.hasWarnings()) {
+            appendValidationMessages(message, "Warnings", validationResult.getWarnings());
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message.toString(), ButtonType.CANCEL, ButtonType.OK);
+        alert.initOwner(stage);
+        alert.setTitle("COCO export validation");
+        alert.setHeaderText(validationResult.hasWarnings()
+                ? "Review warnings before COCO export"
+                : "COCO export validation passed");
+
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    private void appendCategorySummary(StringBuilder message) {
         message.append("\nBy category:\n");
+        boolean hasCategoryRows = false;
+
         for (String category : getCategoryNames()) {
             int count = 0;
             for (AnnotationPolygon polygon : annotationProject.getAllPolygons()) {
@@ -1066,28 +1100,27 @@ public class AnnotationController {
             }
             if (count > 0) {
                 message.append(category).append(": ").append(count).append("\n");
+                hasCategoryRows = true;
             }
         }
 
-        int tinyPolygonCount = 0;
-        for (AnnotationPolygon polygon : annotationProject.getAllPolygons()) {
-            if (calculatePolygonArea(polygon) < 10.0) {
-                tinyPolygonCount++;
-            }
+        if (!hasCategoryRows) {
+            message.append("No category counts.\n");
         }
-
-        if (tinyPolygonCount > 0) {
-            message.append("\nWarning: tiny polygons: ").append(tinyPolygonCount).append("\n");
-        }
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message.toString(), ButtonType.CANCEL, ButtonType.OK);
-        alert.initOwner(stage);
-        alert.setTitle("Export validation");
-        alert.setHeaderText("Review annotations before COCO export");
-
-        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 
+    private void appendValidationMessages(StringBuilder message, String title, List<String> validationMessages) {
+        message.append("\n").append(title).append(":\n");
+        int maxVisibleMessages = 12;
+
+        for (int i = 0; i < validationMessages.size() && i < maxVisibleMessages; i++) {
+            message.append("- ").append(validationMessages.get(i)).append("\n");
+        }
+
+        if (validationMessages.size() > maxVisibleMessages) {
+            message.append("- ... and ").append(validationMessages.size() - maxVisibleMessages).append(" more\n");
+        }
+    }
     private double calculatePolygonArea(AnnotationPolygon polygon) {
         List<Point2D> points = polygon.getPoints();
 
@@ -1559,3 +1592,4 @@ public class AnnotationController {
         );
     }
 }
+
